@@ -55,18 +55,6 @@ mvn exec:java -Dexec.args="--api-key your_key"
                       (循环继续)
 ```
 
-## 项目结构
-
-```
-implement-claude-by-java/
-├── pom.xml                          # Maven 配置
-├── src/main/java/com/example/
-│   ├── AgentLoopApp.java            # 主程序和 CLI
-│   └── BashTools.java               # Bash 工具实现
-├── .env.example                     # 环境变量示例
-└── .gitignore
-```
-
 ## 核心代码
 
 Agent Loop 模式：

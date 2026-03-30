@@ -12,6 +12,8 @@ public class JsonInput {
     private String content;
     private String old_text;
     private String new_text;
+    private String prompt;
+    private String description;
 
     public JsonInput() {
     }
@@ -91,5 +93,21 @@ public class JsonInput {
 
     public void setNew_text(String new_text) {
         this.new_text = new_text;
+    }
+
+    public String getPrompt() {
+        return prompt;
+    }
+
+    public void setPrompt(String prompt) {
+        this.prompt = prompt;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

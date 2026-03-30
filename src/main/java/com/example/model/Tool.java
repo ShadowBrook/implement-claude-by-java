@@ -53,6 +53,14 @@ public class Tool {
         return tool;
     }
 
+    public static Tool createTaskTool() {
+        Tool tool = new Tool();
+        tool.name = "task";
+        tool.description = "Spawn a subagent with fresh context. It shares the filesystem but not conversation history.";
+        tool.input_schema = ToolInputSchema.createTaskSchema();
+        return tool;
+    }
+
     // Getters and Setters
     public String getName() {
         return name;

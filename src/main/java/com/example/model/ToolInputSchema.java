@@ -69,6 +69,17 @@ public class ToolInputSchema {
         return schema;
     }
 
+    public static ToolInputSchema createTaskSchema() {
+        ToolInputSchema schema = new ToolInputSchema();
+        schema.type = "object";
+        SchemaProperties props = new SchemaProperties();
+        props.prompt = new Property("string");
+        props.description = new Property("string");
+        schema.properties = props;
+        schema.required = List.of("prompt");
+        return schema;
+    }
+
     // Getters and Setters
     public String getType() {
         return type;
@@ -104,6 +115,8 @@ public class ToolInputSchema {
         private Property old_text;
         private Property new_text;
         private ItemsProperty items;
+        private Property prompt;
+        private Property description;
 
         public Property getCommand() { return command; }
         public void setCommand(Property command) { this.command = command; }
@@ -119,6 +132,10 @@ public class ToolInputSchema {
         public void setNew_text(Property new_text) { this.new_text = new_text; }
         public ItemsProperty getItems() { return items; }
         public void setItems(ItemsProperty items) { this.items = items; }
+        public Property getPrompt() { return prompt; }
+        public void setPrompt(Property prompt) { this.prompt = prompt; }
+        public Property getDescription() { return description; }
+        public void setDescription(Property description) { this.description = description; }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

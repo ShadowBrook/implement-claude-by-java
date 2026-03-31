@@ -80,6 +80,16 @@ public class ToolInputSchema {
         return schema;
     }
 
+    public static ToolInputSchema createLoadSkillSchema() {
+        ToolInputSchema schema = new ToolInputSchema();
+        schema.type = "object";
+        SchemaProperties props = new SchemaProperties();
+        props.name = new Property("string");
+        schema.properties = props;
+        schema.required = List.of("name");
+        return schema;
+    }
+
     // Getters and Setters
     public String getType() {
         return type;
@@ -117,6 +127,7 @@ public class ToolInputSchema {
         private ItemsProperty items;
         private Property prompt;
         private Property description;
+        private Property name;
 
         public Property getCommand() { return command; }
         public void setCommand(Property command) { this.command = command; }
@@ -136,6 +147,8 @@ public class ToolInputSchema {
         public void setPrompt(Property prompt) { this.prompt = prompt; }
         public Property getDescription() { return description; }
         public void setDescription(Property description) { this.description = description; }
+        public Property getName() { return name; }
+        public void setName(Property name) { this.name = name; }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

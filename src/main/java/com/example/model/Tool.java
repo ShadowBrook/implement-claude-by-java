@@ -61,6 +61,14 @@ public class Tool {
         return tool;
     }
 
+    public static Tool createLoadSkillTool() {
+        Tool tool = new Tool();
+        tool.name = "load_skill";
+        tool.description = "Load specialized knowledge by name.";
+        tool.input_schema = ToolInputSchema.createLoadSkillSchema();
+        return tool;
+    }
+
     // Getters and Setters
     public String getName() {
         return name;

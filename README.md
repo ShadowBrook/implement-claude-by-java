@@ -10,6 +10,7 @@
 | **S02_tool_use** | 添加 Bash/Read/Write/Edit 工具支持 | `mvn exec:java -Dexec.mainClass=com.example.S02_tool_use` |
 | **S03_todo_write** | Todo 工具 + 进度追踪 + 超时提醒机制 | `mvn exec:java -Dexec.mainClass=com.example.S03_todo_write` |
 | **S04_subagent** | 子代理上下文隔离，任务委派 | `mvn exec:java -Dexec.mainClass=com.example.S04_subagent` |
+| **S05_skill_loading** | 技能加载，按需注入领域知识 | `mvn exec:java -Dexec.mainClass=com.example.S05_skill_loading` |
 
 ## 架构演进
 
@@ -53,6 +54,28 @@
 │  │                   │  <summary>   │  write/edit       │          │
 │  │                   │              │                   │          │
 │  └───────────────────┘              └───────────────────┘          │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  S05: Skill Loading - Two-layer Knowledge Injection                 │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  System Prompt (Layer 1)                                    │   │
+│  │  Skills available:                                          │   │
+│  │    - pdf: Process PDF files [file-processing]               │   │
+│  │    - code-review: Review code for bugs [quality]            │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌──────────┐    ┌───────┐    ┌─────────────────────────────┐     │
+│  │   User   │ -> │  LLM  │ -> │ load_skill("pdf")           │     │
+│  └──────────┘    └───┬───┘    └─────────────────────────────┘     │
+│                     ^                                             │
+│                     │  ┌─────────────────────────────────────────┐ │
+│                     └──│ <skill name="pdf">                      │ │
+│                        │   Full PDF processing instructions...   │ │
+│                        │   Step 1: Extract text from PDF         │ │
+│                        │   Step 2: Process images...             │ │
+│                        │   </skill>                              │ │
+│                        └─────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 
 ```
@@ -101,6 +124,7 @@ src/main/java/com/example/
 ├── S02_tool_use.java        # 多工具支持 (bash/read/write/edit)
 ├── S03_todo_write.java      # Todo 工具 + 进度追踪
 ├── S04_subagent.java        # 子代理上下文隔离
+├── S05_skill_loading.java   # 技能加载，按需注入领域知识
 └── model/
     ├── ApiRequest.java      # API 请求体
     ├── ApiResponse.java     # API 响应体
@@ -151,6 +175,38 @@ String summary = runSubAgent(prompt);
 // 父代理上下文保持干净
 ```
 
+### 技能加载 (S05)
+
+```java
+// SkillLoader 扫描 skills/<name>/SKILL.md 文件
+private static final Path SKILLS_DIR = Paths.get(System.getProperty("user.home"), "skills");
+private static final SkillLoader SKILL_LOADER = new SkillLoader(SKILLS_DIR);
+
+// Layer 1: 系统 prompt 中包含技能描述
+systemPrompt = "You are a coding agent...\n\n" +
+        "Skills available:\n" +
+        SKILL_LOADER.getDescriptions();
+
+// Layer 2: 按需加载完整技能内容
+handlers.put("load_skill", input -> SKILL_LOADER.getContent(input.getSkill_name()));
+
+// 返回格式：<skill name="pdf">完整技能内容</skill>
+```
+
+#### 技能文件格式 (skills/pdf/SKILL.md)
+
+```markdown
+---
+name: pdf
+description: Process PDF files
+tags: file-processing
+---
+
+完整的技能内容/指示...
+Step 1: Extract text from PDF
+Step 2: Process images...
+```
+
 ## 工具列表
 
 | 工具 | 描述 | 所属模块 |
@@ -161,6 +217,7 @@ String summary = runSubAgent(prompt);
 | `edit_file` | 编辑文件 (替换文本) | S02+ |
 | `todo` | 更新任务列表 | S03+ |
 | `task` | 委派给子代理 | S04 |
+| `load_skill` | 加载技能知识 | S05 |
 
 ## 安全特性
 

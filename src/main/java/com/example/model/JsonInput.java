@@ -2,6 +2,7 @@ package com.example.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -14,6 +15,7 @@ public class JsonInput {
     private String new_text;
     private String prompt;
     private String description;
+    private String skill_name;
 
     public JsonInput() {
     }
@@ -109,5 +111,14 @@ public class JsonInput {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    @JsonProperty("name")
+    public String getSkill_name() {
+        return skill_name;
+    }
+
+    public void setSkill_name(String skill_name) {
+        this.skill_name = skill_name;
     }
 }

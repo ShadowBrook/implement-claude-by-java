@@ -3,6 +3,7 @@ package com.example.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.Collections;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -90,6 +91,17 @@ public class ToolInputSchema {
         return schema;
     }
 
+    public static ToolInputSchema createCompactSchema() {
+        ToolInputSchema schema = new ToolInputSchema();
+        schema.type = "object";
+        SchemaProperties props = new SchemaProperties();
+        props.focus = new Property("string", Collections.singletonList("What to preserve in the summary"));
+        schema.properties = props;
+        // focus is optional
+        schema.required = List.of();
+        return schema;
+    }
+
     // Getters and Setters
     public String getType() {
         return type;
@@ -128,6 +140,7 @@ public class ToolInputSchema {
         private Property prompt;
         private Property description;
         private Property name;
+        private Property focus;
 
         public Property getCommand() { return command; }
         public void setCommand(Property command) { this.command = command; }
@@ -149,6 +162,8 @@ public class ToolInputSchema {
         public void setDescription(Property description) { this.description = description; }
         public Property getName() { return name; }
         public void setName(Property name) { this.name = name; }
+        public Property getFocus() { return focus; }
+        public void setFocus(Property focus) { this.focus = focus; }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

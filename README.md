@@ -11,6 +11,7 @@
 | **S03_todo_write** | Todo 工具 + 进度追踪 + 超时提醒机制 | `mvn exec:java -Dexec.mainClass=com.example.S03_todo_write` |
 | **S04_subagent** | 子代理上下文隔离，任务委派 | `mvn exec:java -Dexec.mainClass=com.example.S04_subagent` |
 | **S05_skill_loading** | 技能加载，按需注入领域知识 | `mvn exec:java -Dexec.mainClass=com.example.S05_skill_loading` |
+| **S06_context_compact** | 三层上下文压缩，支持无限会话 | `mvn exec:java -Dexec.mainClass=com.example.S06_context_compact` |
 
 ## 架构演进
 
@@ -78,6 +79,33 @@
 │                        └─────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 
+┌─────────────────────────────────────────────────────────────────────┐
+│  S06: Context Compact - Three-layer Compression Pipeline            │
+│                                                                     │
+│  Every turn:                                                        │
+│  ┌──────────────────┐                                               │
+│  │ Tool call result │                                               │
+│  └────────┬─────────┘                                               │
+│           ▼                                                         │
+│  [Layer 1: micro_compact]  ← 静默执行，每轮运行                      │
+│    替换超过最后 3 个的工具结果为 "[Previous: used {tool_name}]"        │
+│           ▼                                                         │
+│  [Check: tokens > 50000?]                                           │
+│     │            │                                                  │
+│     no           yes                                                │
+│     │            ▼                                                  │
+│     │      [Layer 2: auto_compact]                                  │
+│     │        保存完整对话到 .transcripts/                            │
+│     │        让 LLM 总结对话                                         │
+│     │        用 [summary] 替换所有消息                               │
+│     │            ▼                                                  │
+│     │      [Layer 3: compact tool]                                  │
+│     │        模型调用 compact → 立即总结                             │
+│     └──────────── 继续                                              │
+│                                                                     │
+│  Key insight: "The agent can forget strategically and work forever" │
+└─────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ## 快速开始
@@ -125,6 +153,7 @@ src/main/java/com/example/
 ├── S03_todo_write.java      # Todo 工具 + 进度追踪
 ├── S04_subagent.java        # 子代理上下文隔离
 ├── S05_skill_loading.java   # 技能加载，按需注入领域知识
+├── S06_context_compact.java # 三层上下文压缩，支持无限会话
 └── model/
     ├── ApiRequest.java      # API 请求体
     ├── ApiResponse.java     # API 响应体
@@ -193,6 +222,66 @@ handlers.put("load_skill", input -> SKILL_LOADER.getContent(input.getSkill_name(
 // 返回格式：<skill name="pdf">完整技能内容</skill>
 ```
 
+### 上下文压缩 (S06)
+
+```java
+// Layer 1: micro_compact - 每轮静默执行
+private void microCompact(List<Message> messages) {
+    // 收集所有 tool_result，保留最近 3 个
+    // 将旧的工具结果替换为 "[Previous: used {tool_name}]"
+}
+
+// Layer 2: auto_compact - token 超过阈值时触发
+if (estimateTokens(messages) > TOKEN_THRESHOLD) {  // 50000 tokens
+    messages = autoCompact(messages);
+}
+
+// Layer 3: compact tool - 模型主动调用
+if ("compact".equals(toolName)) {
+    manualCompact = true;
+    messages = autoCompact(messages);
+}
+
+// 压缩流程
+private List<Message> autoCompact(List<Message> messages) {
+    // 1. 保存完整对话到 .transcripts/transcript_<timestamp>.jsonl
+    Path transcriptPath = saveTranscript(messages);
+    
+    // 2. 请求 LLM 生成摘要
+    String summary = summarizeConversation(conversationText);
+    
+    // 3. 用摘要替换所有消息
+    return List.of(
+        Message.createUserMessage("[Conversation compressed. Transcript: " + transcriptPath + "]\n\n" + summary),
+        Message.createAssistantMessage("Understood. I have the context from the summary. Continuing.")
+    );
+}
+```
+
+#### Token 估算
+
+```java
+// ~4 chars per token
+private int estimateTokens(List<Message> messages) {
+    StringBuilder sb = new StringBuilder();
+    for (Message msg : messages) {
+        sb.append(msg.toString());
+    }
+    return sb.length() / 4;
+}
+```
+
+#### 转录文件目录结构
+
+```
+.transcripts/
+├── transcript_1712236800.jsonl
+├── transcript_1712237000.jsonl
+└── transcript_1712237200.jsonl
+```
+
+每行格式：`{"role": "user/assistant", "content": [...]}`
+
 #### 技能文件格式 (skills/pdf/SKILL.md)
 
 ```markdown
@@ -218,6 +307,7 @@ Step 2: Process images...
 | `todo` | 更新任务列表 | S03+ |
 | `task` | 委派给子代理 | S04 |
 | `load_skill` | 加载技能知识 | S05 |
+| `compact` | 手动触发上下文压缩 | S06 |
 
 ## 安全特性
 

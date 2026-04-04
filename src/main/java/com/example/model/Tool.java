@@ -69,6 +69,14 @@ public class Tool {
         return tool;
     }
 
+    public static Tool createCompactTool() {
+        Tool tool = new Tool();
+        tool.name = "compact";
+        tool.description = "Trigger manual conversation compression.";
+        tool.input_schema = ToolInputSchema.createCompactSchema();
+        return tool;
+    }
+
     // Getters and Setters
     public String getName() {
         return name;

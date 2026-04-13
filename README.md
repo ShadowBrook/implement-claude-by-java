@@ -12,6 +12,7 @@
 | **S04_subagent** | 子代理上下文隔离，任务委派 | `mvn exec:java -Dexec.mainClass=com.example.S04_subagent` |
 | **S05_skill_loading** | 技能加载，按需注入领域知识 | `mvn exec:java -Dexec.mainClass=com.example.S05_skill_loading` |
 | **S06_context_compact** | 三层上下文压缩，支持无限会话 | `mvn exec:java -Dexec.mainClass=com.example.S06_context_compact` |
+| **S07_permission_system** | 权限系统，三种模式 + 规则引擎 + 用户确认 | `mvn exec:java -Dexec.mainClass=com.example.S07_permission_system` |
 
 ## 架构演进
 
@@ -106,6 +107,50 @@
 │  Key insight: "The agent can forget strategically and work forever" │
 └─────────────────────────────────────────────────────────────────────┘
 
+┌─────────────────────────────────────────────────────────────────────┐
+│  S07: Permission System - Safety Pipeline                           │
+│                                                                     │
+│  Every tool call passes through a permission pipeline:              │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Permission Pipeline                                        │   │
+│  │                                                             │   │
+│  │  [Step 0: Bash Validator]  ← 检查危险模式 (sudo, rm -rf)    │   │
+│  │         │                                                   │   │
+│  │         v                                                   │   │
+│  │  [Step 1: Deny Rules]  ← 阻止 rm -rf /, sudo * 等           │   │
+│  │         │                                                   │   │
+│  │         v                                                   │   │
+│  │  [Step 2: Mode Check]                                       │   │
+│  │         ├── plan 模式：拒绝所有写操作                        │   │
+│  │         ├── auto 模式：自动允许只读操作                      │   │
+│  │         └── default 模式：继续                               │   │
+│  │         │                                                   │   │
+│  │         v                                                   │   │
+│  │  [Step 3: Allow Rules]  ← 匹配允许规则                      │   │
+│  │         │                                                   │   │
+│  │         v                                                   │   │
+│  │  [Step 4: Ask User]  ← 无规则匹配时询问用户                 │   │
+│  │                                                             │   │
+│  │  用户响应：y/n/always                                       │   │
+│  │    - always: 添加永久允许规则                                │   │
+│  │    - Circuit breaker: 连续 3 次拒绝后建议切换 plan 模式         │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  Permission Modes:                                                  │
+│  ┌──────────┬──────────────────────────────────────────────────┐   │
+│  │ default  │ 所有工具调用都需要用户确认（除非匹配规则）         │   │
+│  │ plan     │ 拒绝所有写操作，允许只读操作                       │   │
+│  │ auto     │ 自动允许只读工具，写操作询问用户                   │   │
+│  └──────────┴──────────────────────────────────────────────────┘   │
+│                                                                     │
+│  Commands:                                                          │
+│    /mode <default|plan|auto>  - 切换权限模式                        │
+│    /rules                     - 查看当前规则列表                    │
+│                                                                     │
+│  Key insight: "Safety is a pipeline, not a boolean"                 │
+└─────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ## 快速开始
@@ -154,6 +199,7 @@ src/main/java/com/example/
 ├── S04_subagent.java        # 子代理上下文隔离
 ├── S05_skill_loading.java   # 技能加载，按需注入领域知识
 ├── S06_context_compact.java # 三层上下文压缩，支持无限会话
+├── S07_permission_system.java  # 权限系统，三种模式 + 规则引擎 + 用户确认
 └── model/
     ├── ApiRequest.java      # API 请求体
     ├── ApiResponse.java     # API 响应体
@@ -308,6 +354,47 @@ Step 2: Process images...
 | `task` | 委派给子代理 | S04 |
 | `load_skill` | 加载技能知识 | S05 |
 | `compact` | 手动触发上下文压缩 | S06 |
+
+## 权限系统 (S07)
+
+### 权限检查流程
+
+```
+1. Bash 安全验证 → 检测危险模式 (sudo, rm -rf, 管道符等)
+2. 拒绝规则 → 匹配 deny 规则则直接拒绝
+3. 模式检查 → 根据当前模式决定行为
+4. 允许规则 → 匹配 allow 规则则直接允许
+5. 询问用户 → 默认行为
+```
+
+### 权限规则格式
+
+```java
+new PermissionRule("bash", null, "rm -rf /", "deny")   // 拒绝 rm -rf /
+new PermissionRule("read_file", "*", null, "allow")    // 允许读取任何文件
+```
+
+| 字段 | 说明 |
+|------|------|
+| tool | 工具名称，支持 `*` 通配符 |
+| path | 文件路径 glob 匹配 |
+| content | 内容匹配（用于 bash 命令） |
+| behavior | `allow`, `deny`, `ask` |
+
+### 运行示例
+
+```bash
+mvn exec:java -Dexec.mainClass=com.example.S07_permission_system
+
+# Permission modes: default, plan, auto
+# Mode (default): 
+```
+
+### 安全特性
+
+- **Bash 验证器**: 检测 `sudo`, `rm -rf`, shell 元字符等危险模式
+- **连续拒绝保护**: 连续 3 次拒绝后建议切换到 plan 模式
+- **always 选项**: 用户可选择"always"添加永久允许规则
 
 ## 安全特性
 

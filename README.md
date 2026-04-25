@@ -13,6 +13,7 @@
 | **S05_skill_loading** | 技能加载，按需注入领域知识 | `mvn exec:java -Dexec.mainClass=com.example.S05_skill_loading` |
 | **S06_context_compact** | 三层上下文压缩，支持无限会话 | `mvn exec:java -Dexec.mainClass=com.example.S06_context_compact` |
 | **S07_permission_system** | 权限系统，三种模式 + 规则引擎 + 用户确认 | `mvn exec:java -Dexec.mainClass=com.example.S07_permission_system` |
+| **S08_hook_system** | Hook 系统，扩展点注入行为 | `mvn exec:java -Dexec.mainClass=com.example.S08_hook_system` |
 
 ## 架构演进
 
@@ -151,7 +152,46 @@
 │  Key insight: "Safety is a pipeline, not a boolean"                 │
 └─────────────────────────────────────────────────────────────────────┘
 
-```
+┌─────────────────────────────────────────────────────────────────────┐
+│  S08: Hook System - Extension Points Around the Main Loop           │
+│                                                                     │
+│  Hooks let readers add behavior without rewriting the loop itself.  │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  .hooks.json                                                 │   │
+│  │  {                                                           │   │
+│  │    "hooks": {                                                │   │
+│  │      "SessionStart": [{"command": "...", "matcher": ""}],   │   │
+│  │      "PreToolUse": [{"command": "...", "matcher": "bash"}],  │   │
+│  │      "PostToolUse": [{"command": "...", "matcher": "*"}]     │   │
+│  │    }                                                         │   │
+│  │  }                                                           │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  Hook Events:                                                       │
+│  ┌────────────────┬──────────────────────────────────────────┐   │
+│  │ SessionStart   │ Fire once at session begin                │   │
+│  │ PreToolUse     │ Before each tool call                      │   │
+│  │ PostToolUse    │ After each tool call                       │   │
+│  └────────────────┴──────────────────────────────────────────┘   │
+│                                                                     │
+│  Exit Code Contract:                                               │
+│  ┌──────────┬──────────────────────────────────────────────────┐   │
+│  │ 0        │ Continue silently                                │   │
+│  │ 1        │ Block tool execution                              │   │
+│  │ 2        │ Inject message from stderr into results           │   │
+│  └──────────┴──────────────────────────────────────────────────┘   │
+│                                                                     │
+│  Structured stdout (exit 0):                                       │
+│  │ {"updatedInput": {...}, "additionalContext": "...",           │   │
+│  │  "permissionDecision": "allow/deny"}                          │   │
+│                                                                     │
+│  Trust Model:                                                       │
+│  - Hooks only run if .claude/.claude_trusted exists               │
+│  - Or SDK mode (trust implicit)                                    │
+│                                                                     │
+│  Key insight: "Extend the agent without touching the loop"         │
+└─────────────────────────────────────────────────────────────────────┘
 
 ## 快速开始
 
@@ -200,6 +240,7 @@ src/main/java/com/example/
 ├── S05_skill_loading.java   # 技能加载，按需注入领域知识
 ├── S06_context_compact.java # 三层上下文压缩，支持无限会话
 ├── S07_permission_system.java  # 权限系统，三种模式 + 规则引擎 + 用户确认
+├── S08_hook_system.java        # Hook 系统，扩展点注入行为
 └── model/
     ├── ApiRequest.java      # API 请求体
     ├── ApiResponse.java     # API 响应体
@@ -354,6 +395,7 @@ Step 2: Process images...
 | `task` | 委派给子代理 | S04 |
 | `load_skill` | 加载技能知识 | S05 |
 | `compact` | 手动触发上下文压缩 | S06 |
+| Hooks | PreToolUse / PostToolUse / SessionStart | S08 |
 
 ## 权限系统 (S07)
 
@@ -395,6 +437,82 @@ mvn exec:java -Dexec.mainClass=com.example.S07_permission_system
 - **Bash 验证器**: 检测 `sudo`, `rm -rf`, shell 元字符等危险模式
 - **连续拒绝保护**: 连续 3 次拒绝后建议切换到 plan 模式
 - **always 选项**: 用户可选择"always"添加永久允许规则
+
+## Hook 系统 (S08)
+
+### Hook 配置格式
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "command": "echo 'Session started' >&2",
+        "matcher": ""
+      }
+    ],
+    "PreToolUse": [
+      {
+        "command": "echo 'Blocking bash' >&2; exit 1",
+        "matcher": "bash"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "echo 'Tool finished' >&2; exit 0",
+        "matcher": "*"
+      }
+    ]
+  }
+}
+```
+
+### Matcher 过滤器
+
+| Matcher | 含义 |
+|---------|------|
+| `*` | 匹配所有工具 |
+| `bash` | 仅匹配 bash 工具 |
+| `""` | 无过滤器 |
+
+### 环境变量
+
+Hook 执行时注入以下环境变量：
+
+| 变量 | 说明 |
+|------|------|
+| `HOOK_EVENT` | 事件名称 |
+| `HOOK_TOOL_NAME` | 工具名称 |
+| `HOOK_TOOL_INPUT` | 工具输入参数 (JSON) |
+| `HOOK_TOOL_OUTPUT` | 工具输出结果 |
+
+### 信任机制
+
+```
+WorkDir/.claude/.claude_trusted  ← 存在时启用 Hook
+```
+
+### 运行示例
+
+```bash
+# 1. 创建信任标记
+mkdir -p .claude
+touch .claude/.claude_trusted
+
+# 2. 创建 Hook 配置
+cat > .hooks.json << 'EOF'
+{
+  "hooks": {
+    "SessionStart": [{"command": "echo 'Started' >&2", "matcher": ""}],
+    "PreToolUse": [{"command": "echo 'Pre: ${HOOK_TOOL_NAME}' >&2", "matcher": "*"}],
+    "PostToolUse": [{"command": "echo 'Post: ${HOOK_TOOL_NAME}' >&2", "matcher": "*"}]
+  }
+}
+EOF
+
+# 3. 运行
+mvn exec:java -Dexec.mainClass=com.example.S08_hook_system
+```
 
 ## 安全特性
 

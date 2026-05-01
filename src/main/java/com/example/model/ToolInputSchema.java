@@ -141,6 +141,7 @@ public class ToolInputSchema {
         private Property description;
         private Property name;
         private Property focus;
+        private Property type;
 
         public Property getCommand() { return command; }
         public void setCommand(Property command) { this.command = command; }
@@ -164,6 +165,8 @@ public class ToolInputSchema {
         public void setName(Property name) { this.name = name; }
         public Property getFocus() { return focus; }
         public void setFocus(Property focus) { this.focus = focus; }
+        public Property getType() { return type; }
+        public void setType(Property type) { this.type = type; }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

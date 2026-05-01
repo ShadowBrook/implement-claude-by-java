@@ -14,6 +14,7 @@
 | **S06_context_compact** | 三层上下文压缩，支持无限会话 | `mvn exec:java -Dexec.mainClass=com.example.S06_context_compact` |
 | **S07_permission_system** | 权限系统，三种模式 + 规则引擎 + 用户确认 | `mvn exec:java -Dexec.mainClass=com.example.S07_permission_system` |
 | **S08_hook_system** | Hook 系统，扩展点注入行为 | `mvn exec:java -Dexec.mainClass=com.example.S08_hook_system` |
+| **S09_memory_system** | Memory 系统，跨会话持久化记忆 | `mvn exec:java -Dexec.mainClass=com.example.S09_memory_system` |
 
 ## 架构演进
 
@@ -193,6 +194,40 @@
 │  Key insight: "Extend the agent without touching the loop"         │
 └─────────────────────────────────────────────────────────────────────┘
 
+┌─────────────────────────────────────────────────────────────────────┐
+│  S09: Memory System - Persistent Cross-Session Memory                │
+│                                                                     │
+│  Memory stores information that should survive across sessions:     │
+│  - User preferences ("I like tabs")                                 │
+│  - Repeated feedback ("don't do X")                                 │
+│  - Project facts not derivable from code                            │
+│  - External resource pointers                                       │
+│                                                                     │
+│  Storage layout:                                                    │
+│  .memory/                                                           │
+│    MEMORY.md           ← index                                      │
+│    prefer_tabs.md      ← user memory                                │
+│    review_style.md     ← feedback memory                            │
+│    incident_board.md   ← reference memory                          │
+│                                                                     │
+│  Memory types:                                                      │
+│  ┌──────────┬──────────────────────────────────────────┐           │
+│  │ user     │ User preferences and habits              │           │
+│  │ feedback │ User corrections and style guidance       │           │
+│  │ project  │ Project-specific facts not in code       │           │
+│  │ reference│ External resources (boards, dashboards)  │           │
+│  └──────────┴──────────────────────────────────────────┘           │
+│                                                                     │
+│  save_memory tool:                                                 │
+│  - name: Short identifier (e.g. prefer_tabs)                        │
+│  - description: One-line summary                                    │
+│  - type: user | feedback | project | reference                     │
+│  - content: Full memory content                                    │
+│                                                                     │
+│  Key insight: "Memory only stores cross-session information that    │
+│  is still worth recalling later and is not easy to re-derive."     │
+└─────────────────────────────────────────────────────────────────────┘
+
 ## 快速开始
 
 ### 前置要求
@@ -241,6 +276,7 @@ src/main/java/com/example/
 ├── S06_context_compact.java # 三层上下文压缩，支持无限会话
 ├── S07_permission_system.java  # 权限系统，三种模式 + 规则引擎 + 用户确认
 ├── S08_hook_system.java        # Hook 系统，扩展点注入行为
+├── S09_memory_system.java      # Memory 系统，跨会话持久化记忆
 └── model/
     ├── ApiRequest.java      # API 请求体
     ├── ApiResponse.java     # API 响应体
@@ -396,6 +432,7 @@ Step 2: Process images...
 | `load_skill` | 加载技能知识 | S05 |
 | `compact` | 手动触发上下文压缩 | S06 |
 | Hooks | PreToolUse / PostToolUse / SessionStart | S08 |
+| `save_memory` | 保存跨会话记忆 | S09 |
 
 ## 权限系统 (S07)
 

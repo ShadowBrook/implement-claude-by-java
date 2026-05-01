@@ -261,7 +261,7 @@ public class S05_skill_loading {
                 input.getOld_text(),
                 input.getNew_text()
         ));
-        handlers.put("load_skill", input -> loadSkill(input.getSkill_name()));
+        handlers.put("load_skill", input -> loadSkill(input.getName()));
         return handlers;
     }
 
